@@ -427,7 +427,13 @@ enum mips_operand_type {
   OP_CHECK_PREV,
 
   /* A register operand that must not be zero.  */
-  OP_NON_ZERO_REG
+  OP_NON_ZERO_REG,
+
+  /* Nintendo 64 RSP vector register with element specifier (vec[el]) */
+  OP_RSP_VECEL,
+
+  /* Nintendo 64 RSP vector register with element specifier (vec[el]) used by l?v/s?v */
+  OP_RSP_VECEL_LS
 };
 
 /* Enumerates the types of MIPS register.  */
@@ -971,6 +977,15 @@ struct mips_opcode
    "-A" symbolic offset (-262144 .. 262143) << 2 at bit 0
    "-B" symbolic offset (-131072 .. 131071) << 3 at bit 0
 
+   Nintendo 64 RSP:
+   "-e" 4 bit vector register element
+        for mfc2 and mtc2.
+   "-oN" 7 bit reg-offset, where "N" is "0".."4" for element size.
+   "-K" 9 bit source2 vector register with element specifier (4 el + 5 reg)
+        for many vector calculation instructions, such as vadd, vmulf, vnxor.
+   "-L" 9 bit destination vector register with element specifier (4 el + 5 reg)
+        for instructions that operates for some one element of a vector, such as vrcp, vrsq.
+
    Other:
    "()" parens surrounding optional value
    ","  separates operands
@@ -991,8 +1006,8 @@ struct mips_opcode
 
    Extension character sequences used so far ("-" followed by the
    following), for quick reference when adding more:
-   "AB"
-   "abdstuvwxy"
+   "ABKL"
+   "abdeostuvwxy"
 */
 
 /* These are the bits which may be set in the pinfo field of an
@@ -1190,7 +1205,7 @@ static const unsigned int mips_isa_table[] = {
 #undef ISAF
 
 /* Masks used for Chip specific instructions.  */
-#define INSN_CHIP_MASK		  0xc3ff0f20
+#define INSN_CHIP_MASK		  0xc7ff0f20
 
 /* Cavium Networks Octeon instructions.  */
 #define INSN_OCTEON		  0x00000800
@@ -1220,6 +1235,8 @@ static const unsigned int mips_isa_table[] = {
 #define INSN_5400		  0x01000000
 /* NEC VR5500 instruction.  */
 #define INSN_5500		  0x02000000
+/* Nintendo 64 RSP */
+#define INSN_RSP		  0x04000000
 
 /* ST Microelectronics Loongson 2E.  */
 #define INSN_LOONGSON_2E          0x40000000
@@ -1255,6 +1272,8 @@ static const unsigned int mips_isa_table[] = {
 #define ASE_MSA64		0x00001000
 /* eXtended Physical Address (XPA) Extension.  */
 #define ASE_XPA			0x00002000
+/* Nintendo 64 RSP */
+#define ASE_RSP			0x00004000
 
 /* MIPS ISA defines, use instead of hardcoding ISA level.  */
 
@@ -1703,7 +1722,7 @@ enum
 
 extern const struct mips_operand mips_vu0_channel_mask;
 extern const struct mips_operand *decode_mips_operand (const char *);
-extern const struct mips_opcode mips_builtin_opcodes[];
+extern struct mips_opcode mips_builtin_opcodes[];
 extern const int bfd_mips_num_builtin_opcodes;
 extern struct mips_opcode *mips_opcodes;
 extern int bfd_mips_num_opcodes;

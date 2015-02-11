@@ -46,6 +46,19 @@ decode_mips_operand (const char *p)
 	case 'a': INT_ADJ (19, 0, 262143, 2, FALSE);
 	case 'b': INT_ADJ (18, 0, 131071, 3, FALSE);
 	case 'd': SPECIAL (0, 0, REPEAT_DEST_REG);
+	case 'e': SPECIAL (4, 7, RSP_VECEL_LS);
+	case 'o':
+	  switch (p[2])
+	    {
+	    case '0': INT_ADJ (7, 0, 63, 0, FALSE);	/* (-64 .. 63) << 0 */
+	    case '1': INT_ADJ (7, 0, 63, 1, FALSE);	/* (-64 .. 63) << 1 */
+	    case '2': INT_ADJ (7, 0, 63, 2, FALSE);	/* (-64 .. 63) << 2 */
+	    case '3': INT_ADJ (7, 0, 63, 3, FALSE);	/* (-64 .. 63) << 3 */
+	    case '4': INT_ADJ (7, 0, 63, 4, FALSE);	/* (-64 .. 63) << 4 */
+	    }
+	  break;
+	case 'K': SPECIAL (9, 16, RSP_VECEL);
+	case 'L': SPECIAL (9, 6, RSP_VECEL);
 	case 's': SPECIAL (5, 21, NON_ZERO_REG);
 	case 't': SPECIAL (5, 16, NON_ZERO_REG);
 	case 'u': PREV_CHECK (5, 16, TRUE, FALSE, FALSE, TRUE);
@@ -322,6 +335,8 @@ decode_mips_operand (const char *p)
 #define XLR     INSN_XLR
 #define IVIRT	ASE_VIRT
 #define IVIRT64	ASE_VIRT64
+/* Nintendo 64 RSP */
+#define IRSP	INSN_RSP
 
 #define G1      (T3             \
                  |EE            \
@@ -394,6 +409,9 @@ decode_mips_operand (const char *p)
 /* eXtended Physical Address (XPA) support.  */
 #define XPA     ASE_XPA
 
+/* Nintendo 64 RSP */
+#define RSP     ASE_RSP
+
 /* The order of overloaded instructions matters.  Label arguments and
    register arguments look the same. Instructions that can have either
    for arguments must apear in the correct order in this table for the
@@ -407,7 +425,7 @@ decode_mips_operand (const char *p)
    Many instructions are short hand for other instructions (i.e., The
    jal <register> instruction is short for jalr <register>).  */
 
-const struct mips_opcode mips_builtin_opcodes[] =
+struct mips_opcode mips_builtin_opcodes[] =
 {
 /* These instructions appear first so that the disassembler will find
    them first.  The assemblers uses a hash table based on the
@@ -1281,9 +1299,21 @@ const struct mips_opcode mips_builtin_opcodes[] =
 {"lwc1",		"E,A(b)",	0,    (int) M_LWC1_AB,	INSN_MACRO,		INSN2_M_FP_S,	I1,		0,	0 },
 {"l.s",			"T,o(b)",	0xc4000000, 0xfc000000,	WR_1|RD_3|CLD|FP_S,	0,		I1,		0,	0 }, /* lwc1 */
 {"l.s",			"T,A(b)",	0,    (int) M_LWC1_AB,	INSN_MACRO,		INSN2_M_FP_S,	I1,		0,	0 },
+{"lbv",			"Z-e,-o0(b)",	0xc8000000, 0xfc00f800,	WR_1|RD_4|CLD|WR_C2,	0,		IRSP,		RSP,	0 },
+{"lsv",			"Z-e,-o1(b)",	0xc8000800, 0xfc00f800,	WR_1|RD_4|CLD|WR_C2,	0,		IRSP,		RSP,	0 },
+{"llv",			"Z-e,-o2(b)",	0xc8001000, 0xfc00f800,	WR_1|RD_4|CLD|WR_C2,	0,		IRSP,		RSP,	0 },
+{"ldv",			"Z-e,-o3(b)",	0xc8001800, 0xfc00f800,	WR_1|RD_4|CLD|WR_C2,	0,		IRSP,		RSP,	0 },
+{"lqv",			"Z-e,-o4(b)",	0xc8002000, 0xfc00f800,	WR_1|RD_4|CLD|WR_C2,	0,		IRSP,		RSP,	0 },
+{"lrv",			"Z-e,-o4(b)",	0xc8002800, 0xfc00f800,	WR_1|RD_4|CLD|WR_C2,	0,		IRSP,		RSP,	0 },
+{"lpv",			"Z-e,-o3(b)",	0xc8003000, 0xfc00f800,	WR_1|RD_4|CLD|WR_C2,	0,		IRSP,		RSP,	0 },
+{"luv",			"Z-e,-o3(b)",	0xc8003800, 0xfc00f800,	WR_1|RD_4|CLD|WR_C2,	0,		IRSP,		RSP,	0 },
+{"lhv",			"Z-e,-o4(b)",	0xc8004000, 0xfc00f800,	WR_1|RD_4|CLD|WR_C2,	0,		IRSP,		RSP,	0 },
+{"lfv",			"Z-e,-o4(b)",	0xc8004800, 0xfc00f800,	WR_1|RD_4|CLD|WR_C2,	0,		IRSP,		RSP,	0 },
+{"lwv",			"Z-e,-o4(b)",	0xc8005000, 0xfc00f800,	WR_1|RD_4|CLD|WR_C2,	0,		IRSP,		RSP,	0 },
+{"ltv",			"Z-e,-o4(b)",	0xc8005800, 0xfc00f800,	WR_1|RD_4|CLD|WR_C2,	0,		IRSP,		RSP,	0 },
 {"lwc2",		"E,+:(d)",	0x49400000, 0xffe00000,	RD_3|WR_C2|CLD,		0,		I37,		0,	0 },
-{"lwc2",		"E,o(b)",	0xc8000000, 0xfc000000,	RD_3|WR_CC|CLD,		0,		I1,		0,	IOCT|IOCTP|IOCT2|EE|I37 },
-{"lwc2",		"E,A(b)",	0,    (int) M_LWC2_AB,	INSN_MACRO,		0,		I1,		0,	IOCT|IOCTP|IOCT2|EE },
+{"lwc2",		"E,o(b)",	0xc8000000, 0xfc000000,	RD_3|WR_CC|CLD,		0,		I1,		0,	IOCT|IOCTP|IOCT2|EE|IRSP|I37 },
+{"lwc2",		"E,A(b)",	0,    (int) M_LWC2_AB,	INSN_MACRO,		0,		I1,		0,	IOCT|IOCTP|IOCT2|EE|IRSP },
 {"lwc3",		"E,o(b)",	0xcc000000, 0xfc000000,	RD_3|WR_CC|CLD,		0,		I1,		0,	IOCT|IOCTP|IOCT2|EE|I37 },
 {"lwc3",		"E,A(b)",	0,    (int) M_LWC3_AB,	INSN_MACRO,		0,		I1,		0,	IOCT|IOCTP|IOCT2|EE|I37 },
 {"lwl",			"t,o(b)",	0x88000000, 0xfc000000,	WR_1|RD_3|LM,		0,		I1,		0,	I37 },
@@ -1935,9 +1965,21 @@ const struct mips_opcode mips_builtin_opcodes[] =
 {"swc1",		"E,A(b)",	0,    (int) M_SWC1_AB,	INSN_MACRO,		INSN2_M_FP_S,	I1,		0,	0 },
 {"s.s",			"T,o(b)",	0xe4000000, 0xfc000000,	RD_1|RD_3|SM|FP_S,	0,		I1,		0,	0 }, /* swc1 */
 {"s.s",			"T,A(b)",	0,    (int) M_SWC1_AB,	INSN_MACRO,		INSN2_M_FP_S,	I1,		0,	0 },
+{"sbv",			"Z-e,-o0(b)",	0xe8000000, 0xfc00f800,	RD_1|RD_4|SM,		0,		IRSP,		RSP,	0 },
+{"ssv",			"Z-e,-o1(b)",	0xe8000800, 0xfc00f800,	RD_1|RD_4|SM,		0,		IRSP,		RSP,	0 },
+{"slv",			"Z-e,-o2(b)",	0xe8001000, 0xfc00f800,	RD_1|RD_4|SM,		0,		IRSP,		RSP,	0 },
+{"sdv",			"Z-e,-o3(b)",	0xe8001800, 0xfc00f800,	RD_1|RD_4|SM,		0,		IRSP,		RSP,	0 },
+{"sqv",			"Z-e,-o4(b)",	0xe8002000, 0xfc00f800,	RD_1|RD_4|SM,		0,		IRSP,		RSP,	0 },
+{"srv",			"Z-e,-o4(b)",	0xe8002800, 0xfc00f800,	RD_1|RD_4|SM,		0,		IRSP,		RSP,	0 },
+{"spv",			"Z-e,-o3(b)",	0xe8003000, 0xfc00f800,	RD_1|RD_4|SM,		0,		IRSP,		RSP,	0 },
+{"suv",			"Z-e,-o3(b)",	0xe8003800, 0xfc00f800,	RD_1|RD_4|SM,		0,		IRSP,		RSP,	0 },
+{"shv",			"Z-e,-o4(b)",	0xe8004000, 0xfc00f800,	RD_1|RD_4|SM,		0,		IRSP,		RSP,	0 },
+{"sfv",			"Z-e,-o4(b)",	0xe8004800, 0xfc00f800,	RD_1|RD_4|SM,		0,		IRSP,		RSP,	0 },
+{"swv",			"Z-e,-o4(b)",	0xe8005000, 0xfc00f800,	RD_1|RD_4|SM,		0,		IRSP,		RSP,	0 },
+{"stv",			"Z-e,-o4(b)",	0xe8005800, 0xfc00f800,	RD_1|RD_4|SM,		0,		IRSP,		RSP,	0 },
 {"swc2",		"E,+:(d)",	0x49600000, 0xffe00000,	RD_3|RD_C2|SM,		0,		I37,		0,	0 },
-{"swc2",		"E,o(b)",	0xe8000000, 0xfc000000,	RD_3|RD_C2|SM,		0,		I1,		0,	IOCT|IOCTP|IOCT2|EE|I37 },
-{"swc2",		"E,A(b)",	0,    (int) M_SWC2_AB,	INSN_MACRO,		0,		I1,		0,	IOCT|IOCTP|IOCT2|EE },
+{"swc2",		"E,o(b)",	0xe8000000, 0xfc000000,	RD_3|RD_C2|SM,		0,		I1,		0,	IOCT|IOCTP|IOCT2|EE|IRSP|I37 },
+{"swc2",		"E,A(b)",	0,    (int) M_SWC2_AB,	INSN_MACRO,		0,		I1,		0,	IOCT|IOCTP|IOCT2|EE|IRSP },
 {"swc3",		"E,o(b)",	0xec000000, 0xfc000000,	RD_3|RD_C3|SM,		0,		I1,		0,	IOCT|IOCTP|IOCT2|EE|I37 },
 {"swc3",		"E,A(b)",	0,    (int) M_SWC3_AB,	INSN_MACRO,		0,		I1,		0,	IOCT|IOCTP|IOCT2|EE|I37 },
 {"swl",			"t,o(b)",	0xa8000000, 0xfc000000,	RD_1|RD_3|SM,		0,		I1,		0,	I37 },
@@ -2023,6 +2065,49 @@ const struct mips_opcode mips_builtin_opcodes[] =
 {"usd",			"t,A(b)",	0,    (int) M_USD_AB,	INSN_MACRO,		0,		I3,		0,	I69 },
 {"ush",			"t,A(b)",	0,    (int) M_USH_AB,	INSN_MACRO,		0,		I1,		0,	I37 },
 {"usw",			"t,A(b)",	0,    (int) M_USW_AB,	INSN_MACRO,		0,		I1,		0,	I37 },
+{"vmulf",		"X,Y,-K",	0x4a000000, 0xfe00003f,	WR_1|RD_2|RD_3,		0,		IRSP,		RSP,	0 },
+{"vmulu",		"X,Y,-K",	0x4a000001, 0xfe00003f,	WR_1|RD_2|RD_3,		0,		IRSP,		RSP,	0 },
+{"vmudl",		"X,Y,-K",	0x4a000004, 0xfe00003f,	WR_1|RD_2|RD_3,		0,		IRSP,		RSP,	0 },
+{"vmudm",		"X,Y,-K",	0x4a000005, 0xfe00003f,	WR_1|RD_2|RD_3,		0,		IRSP,		RSP,	0 },
+{"vmudn",		"X,Y,-K",	0x4a000006, 0xfe00003f,	WR_1|RD_2|RD_3,		0,		IRSP,		RSP,	0 },
+{"vmudh",		"X,Y,-K",	0x4a000007, 0xfe00003f,	WR_1|RD_2|RD_3,		0,		IRSP,		RSP,	0 },
+{"vmacf",		"X,Y,-K",	0x4a000008, 0xfe00003f,	WR_1|RD_2|RD_3,		0,		IRSP,		RSP,	0 },
+{"vmacu",		"X,Y,-K",	0x4a000009, 0xfe00003f,	WR_1|RD_2|RD_3,		0,		IRSP,		RSP,	0 },
+{"vmacq",		"X,Y,-K",	0x4a00000b, 0xfe00003f,	WR_1|RD_2|RD_3,		0,		IRSP,		RSP,	0 },
+{"vmadl",		"X,Y,-K",	0x4a00000c, 0xfe00003f,	WR_1|RD_2|RD_3,		0,		IRSP,		RSP,	0 },
+{"vmadm",		"X,Y,-K",	0x4a00000d, 0xfe00003f,	WR_1|RD_2|RD_3,		0,		IRSP,		RSP,	0 },
+{"vmadn",		"X,Y,-K",	0x4a00000e, 0xfe00003f,	WR_1|RD_2|RD_3,		0,		IRSP,		RSP,	0 },
+{"vmadh",		"X,Y,-K",	0x4a00000f, 0xfe00003f,	WR_1|RD_2|RD_3,		0,		IRSP,		RSP,	0 },
+{"vadd",		"X,Y,-K",	0x4a000010, 0xfe00003f,	WR_1|RD_2|RD_3,		0,		IRSP,		RSP,	0 },
+{"vsub",		"X,Y,-K",	0x4a000011, 0xfe00003f,	WR_1|RD_2|RD_3,		0,		IRSP,		RSP,	0 },
+{"vabs",		"X,Y,-K",	0x4a000013, 0xfe00003f,	WR_1|RD_2|RD_3,		0,		IRSP,		RSP,	0 },
+{"vaddc",		"X,Y,-K",	0x4a000014, 0xfe00003f,	WR_1|RD_2|RD_3,		0,		IRSP,		RSP,	0 },
+{"vsubc",		"X,Y,-K",	0x4a000015, 0xfe00003f,	WR_1|RD_2|RD_3,		0,		IRSP,		RSP,	0 },
+{"vsawh",		"X",		0x4b00001d, 0xfffff83f,	WR_1,			0,		IRSP,		RSP,	0 },
+{"vsawm",		"X",		0x4b20001d, 0xfffff83f,	WR_1,			0,		IRSP,		RSP,	0 },
+{"vsawl",		"X",		0x4b40001d, 0xfffff83f,	WR_1,			0,		IRSP,		RSP,	0 },
+{"vlt",			"X,Y,-K",	0x4a000020, 0xfe00003f,	WR_1|RD_2|RD_3,		0,		IRSP,		RSP,	0 },
+{"veq",			"X,Y,-K",	0x4a000021, 0xfe00003f,	WR_1|RD_2|RD_3,		0,		IRSP,		RSP,	0 },
+{"vne",			"X,Y,-K",	0x4a000022, 0xfe00003f,	WR_1|RD_2|RD_3,		0,		IRSP,		RSP,	0 },
+{"vge",			"X,Y,-K",	0x4a000023, 0xfe00003f,	WR_1|RD_2|RD_3,		0,		IRSP,		RSP,	0 },
+{"vcl",			"X,Y,-K",	0x4a000024, 0xfe00003f,	WR_1|RD_2|RD_3,		0,		IRSP,		RSP,	0 },
+{"vch",			"X,Y,-K",	0x4a000025, 0xfe00003f,	WR_1|RD_2|RD_3,		0,		IRSP,		RSP,	0 },
+{"vcr",			"X,Y,-K",	0x4a000026, 0xfe00003f,	WR_1|RD_2|RD_3,		0,		IRSP,		RSP,	0 },
+{"vmrg",		"X,Y,-K",	0x4a000027, 0xfe00003f,	WR_1|RD_2|RD_3,		0,		IRSP,		RSP,	0 },
+{"vand",		"X,Y,-K",	0x4a000028, 0xfe00003f,	WR_1|RD_2|RD_3,		0,		IRSP,		RSP,	0 },
+{"vnand",		"X,Y,-K",	0x4a000029, 0xfe00003f,	WR_1|RD_2|RD_3,		0,		IRSP,		RSP,	0 },
+{"vor",			"X,Y,-K",	0x4a00002a, 0xfe00003f,	WR_1|RD_2|RD_3,		0,		IRSP,		RSP,	0 },
+{"vnor",		"X,Y,-K",	0x4a00002b, 0xfe00003f,	WR_1|RD_2|RD_3,		0,		IRSP,		RSP,	0 },
+{"vxor",		"X,Y,-K",	0x4a00002c, 0xfe00003f,	WR_1|RD_2|RD_3,		0,		IRSP,		RSP,	0 },
+{"vnxor",		"X,Y,-K",	0x4a00002d, 0xfe00003f,	WR_1|RD_2|RD_3,		0,		IRSP,		RSP,	0 },
+{"vrcp",		"-L,-K",	0x4a000030, 0xfe00803f,	WR_1|RD_2,		0,		IRSP,		RSP,	0 },
+{"vrcpl",		"-L,-K",	0x4a000031, 0xfe00803f,	WR_1|RD_2,		0,		IRSP,		RSP,	0 },
+{"vrcph",		"-L,-K",	0x4a000032, 0xfe00803f,	WR_1|RD_2,		0,		IRSP,		RSP,	0 },
+{"vmov",		"-L,-K",	0x4a000033, 0xfe00803f,	WR_1|RD_2,		0,		IRSP,		RSP,	0 },
+{"vrsq",		"-L,-K",	0x4a000034, 0xfe00803f,	WR_1|RD_2,		0,		IRSP,		RSP,	0 },
+{"vrsql",		"-L,-K",	0x4a000035, 0xfe00803f,	WR_1|RD_2,		0,		IRSP,		RSP,	0 },
+{"vrsqh",		"-L,-K",	0x4a000036, 0xfe00803f,	WR_1|RD_2,		0,		IRSP,		RSP,	0 },
+{"vnop",		"",		0x4a000037, 0xffffffff,	WR_1|RD_2,		0,		IRSP,		RSP,	0 },
 {"v3mulu",		"d,v,t",	0x70000011, 0xfc0007ff, WR_1|RD_2|RD_3,		0,		IOCT,		0,	0 },
 {"vmm0",		"d,v,t",	0x70000010, 0xfc0007ff, WR_1|RD_2|RD_3,		0,		IOCT,		0,	0 },
 {"vmulu",		"d,v,t",	0x7000000f, 0xfc0007ff, WR_1|RD_2|RD_3,		0,		IOCT,		0,	0 },
@@ -2072,10 +2157,16 @@ const struct mips_opcode mips_builtin_opcodes[] =
 {"cfc2",		"t,+9",		0x48400000, 0xffe007ff,	WR_1|RD_C2|LC,		0,		EE,		0,	0 },
 {"cfc2.i",		"t,+9",		0x48400001, 0xffe007ff, WR_1|RD_C2|LC,		0,		EE,		0,	0 },
 {"cfc2.ni",		"t,+9",		0x48400000, 0xffe007ff, WR_1|RD_C2|LC,		0,		EE,		0,	0 },
+{"cfc2c",		"t",		0x48400000, 0xffe0ffff,	LC|WR_1|RD_C2,		0,		IRSP,		RSP,	0 },
+{"cfc2o",		"t",		0x48400800, 0xffe0ffff,	LC|WR_1|RD_C2,		0,		IRSP,		RSP,	0 },
+{"cfc2l",		"t",		0x48401000, 0xffe0ffff,	LC|WR_1|RD_C2,		0,		IRSP,		RSP,	0 },
 {"ctc2",		"t,G",		0x48c00000, 0xffe007ff,	RD_1|WR_CC|CM,		0,		I1,		0,	IOCT|IOCTP|IOCT2|EE },
 {"ctc2",		"t,+9",		0x48c00000, 0xffe007ff,	RD_1|WR_CC|CM,		0,		EE,		0,	0 },
 {"ctc2.i",		"t,+9",		0x48c00001, 0xffe007ff, RD_1|WR_CC|CM,		0,		EE,		0,	0 },
 {"ctc2.ni",		"t,+9",		0x48c00000, 0xffe007ff, RD_1|WR_CC|CM,		0,		EE,		0,	0 },
+{"ctc2c",		"t",		0x48c00000, 0xffe0ffff,	CM|RD_1|WR_CC,		0,		IRSP,		RSP,	0 },
+{"ctc2o",		"t",		0x48c00800, 0xffe0ffff,	CM|RD_1|WR_CC,		0,		IRSP,		RSP,	0 },
+{"ctc2l",		"t",		0x48c01000, 0xffe0ffff,	CM|RD_1|WR_CC,		0,		IRSP,		RSP,	0 },
 {"dmfc2",		"t,i",		0x48200000, 0xffe00000,	WR_1|RD_C2|LC,		0,		IOCT,		0,	0 },
 {"dmfc2",		"t,G",		0x48200000, 0xffe007ff,	WR_1|RD_C2|LC,		0,		I3,		0,	IOCT|IOCTP|IOCT2|EE },
 {"dmfc2",		"t,G,H",	0x48200000, 0xffe007f8,	WR_1|RD_C2|LC,		0,		I64,		0,	IOCT|IOCTP|IOCT2 },
@@ -2083,11 +2174,13 @@ const struct mips_opcode mips_builtin_opcodes[] =
 {"dmtc2",		"t,G",		0x48a00000, 0xffe007ff,	RD_1|WR_C2|WR_CC|CM,	0,		I3,		0,	IOCT|IOCTP|IOCT2|EE },
 {"dmtc2",		"t,G,H",	0x48a00000, 0xffe007f8,	RD_1|WR_C2|WR_CC|CM,	0,		I64,		0,	IOCT|IOCTP|IOCT2 },
 {"mfc2",		"t,G",		0x48000000, 0xffe007ff,	WR_1|RD_C2|LC,		0,		I1,		0,	IOCT|IOCTP|IOCT2|EE },
+{"mfc2",		"t,Y-e",	0x48000000, 0xffe0007f,	LC|WR_1|RD_C2,		0,		IRSP,		RSP,	0 },
 {"mfc2",		"t,G,H",	0x48000000, 0xffe007f8,	WR_1|RD_C2|LC,		0,		I32,		0,	IOCT|IOCTP|IOCT2 },
 {"mfhc2",		"t,G",		0x48600000, 0xffe007ff,	WR_1|RD_C2|LC,		0,		I33,		0,	IOCT|IOCTP|IOCT2 },
 {"mfhc2",		"t,G,H",	0x48600000, 0xffe007f8,	WR_1|RD_C2|LC,		0,		I33,		0,	IOCT|IOCTP|IOCT2 },
 {"mfhc2",		"t,i",		0x48600000, 0xffe00000,	WR_1|RD_C2|LC,		0,		I33,		0,	IOCT|IOCTP|IOCT2 },
 {"mtc2",		"t,G",		0x48800000, 0xffe007ff,	RD_1|WR_C2|WR_CC|CM,	0,		I1,		0,	IOCT|IOCTP|IOCT2|EE },
+{"mtc2",		"t,Y-e",	0x48800000, 0xffe0007f,	CM|RD_1|WR_C2|WR_CC,	0,		IRSP,		RSP,	0 },
 {"mtc2",		"t,G,H",	0x48800000, 0xffe007f8,	RD_1|WR_C2|WR_CC|CM,	0,		I32,		0,	IOCT|IOCTP|IOCT2 },
 {"mthc2",		"t,G",		0x48e00000, 0xffe007ff,	RD_1|WR_C2|WR_CC|CM,	0,		I33,		0,	IOCT|IOCTP|IOCT2 },
 {"mthc2",		"t,G,H",	0x48e00000, 0xffe007f8,	RD_1|WR_C2|WR_CC|CM,	0,		I33,		0,	IOCT|IOCTP|IOCT2 },
