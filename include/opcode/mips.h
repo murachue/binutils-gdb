@@ -434,7 +434,13 @@ enum mips_operand_type {
   OP_CHECK_PREV,
 
   /* A register operand that must not be zero.  */
-  OP_NON_ZERO_REG
+  OP_NON_ZERO_REG,
+
+  /* Nintendo 64 RSP vector register with element specifier (vec[el]) */
+  OP_RSP_VECEL,
+
+  /* Nintendo 64 RSP vector register with element specifier (vec[el]) used by l?v/s?v */
+  OP_RSP_VECEL_LS
 };
 
 /* Enumerates the types of MIPS register.  */
@@ -992,6 +998,19 @@ mips_opcode_32bit_p (const struct mips_opcode *mo)
    GINV ASE usage:
    "+\" 2 bit Global TLB invalidate type at bit 8
 
+   Nintendo 64 RSP:
+   "-e" 4 bit vector register element
+        for mfc2 and mtc2.
+   "-0" 7 bit reg-offset, 1-byte step.
+   "-1" 7 bit reg-offset, 2-byte step.
+   "-2" 7 bit reg-offset, 4-byte step.
+   "-3" 7 bit reg-offset, 8-byte step.
+   "-4" 7 bit reg-offset, 16-byte step.
+   "-K" 9 bit source2 vector register with element specifier (4 el + 5 reg)
+        for many vector calculation instructions, such as vadd, vmulf, vnxor.
+   "-L" 9 bit destination vector register with element specifier (4 el + 5 reg)
+        for instructions that operates for some one element of a vector, such as vrcp, vrsq.
+
    Other:
    "()" parens surrounding optional value
    ","  separates operands
@@ -1012,8 +1031,9 @@ mips_opcode_32bit_p (const struct mips_opcode *mo)
 
    Extension character sequences used so far ("-" followed by the
    following), for quick reference when adding more:
-   "AB"
-   "abdmstuvwxy"
+   "01234"
+   "ABKL"
+   "abdemstuvwxy"
 */
 
 /* These are the bits which may be set in the pinfo field of an
@@ -1220,7 +1240,7 @@ static const unsigned int mips_isa_table[] = {
 #undef ISAF
 
 /* Masks used for Chip specific instructions.  */
-#define INSN_CHIP_MASK		  0xc7ff4f60
+#define INSN_CHIP_MASK		  0xcfff4f60
 
 /* Cavium Networks Octeon instructions.  */
 #define INSN_OCTEON		  0x00000800
@@ -1251,6 +1271,8 @@ static const unsigned int mips_isa_table[] = {
 #define INSN_5400		  0x01000000
 /* NEC VR5500 instruction.  */
 #define INSN_5500		  0x02000000
+/* Nintendo 64 RSP */
+#define INSN_RSP		  0x08000000
 
 /* ST Microelectronics Loongson 2E.  */
 #define INSN_LOONGSON_2E          0x40000000
@@ -1308,6 +1330,8 @@ static const unsigned int mips_isa_table[] = {
 #define ASE_LOONGSON_EXT	0x00800000
 /* Loongson EXTensions R2 (EXT2) instructions.  */
 #define ASE_LOONGSON_EXT2	0x01000000
+/* Nintendo 64 RSP */
+#define ASE_RSP			0x02000000
 
 /* MIPS ISA defines, use instead of hardcoding ISA level.  */
 

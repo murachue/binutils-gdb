@@ -1460,6 +1460,8 @@ enum options
     OPTION_NO_EVA,
     OPTION_XPA,
     OPTION_NO_XPA,
+    OPTION_RSP,
+    OPTION_NO_RSP,
     OPTION_MICROMIPS,
     OPTION_NO_MICROMIPS,
     OPTION_MCU,
@@ -1613,6 +1615,8 @@ struct option md_longopts[] =
   {"mno-loongson-ext", no_argument, NULL, OPTION_NO_LOONGSON_EXT},
   {"mloongson-ext2", no_argument, NULL, OPTION_LOONGSON_EXT2},
   {"mno-loongson-ext2", no_argument, NULL, OPTION_NO_LOONGSON_EXT2},
+  {"mrsp", no_argument, NULL, OPTION_RSP},
+  {"mno-rsp", no_argument, NULL, OPTION_NO_RSP},
 
   /* Old-style architecture options.  Don't add more of these.  */
   {"m4650", no_argument, NULL, OPTION_M4650},
@@ -1831,6 +1835,11 @@ static const struct mips_ase mips_ases[] = {
   { "loongson-ext2", ASE_LOONGSON_EXT | ASE_LOONGSON_EXT2, 0,
     OPTION_LOONGSON_EXT2, OPTION_NO_LOONGSON_EXT2,
     0, 0, -1, -1,
+    -1 },
+
+  { "rsp", ASE_RSP, 0,
+    OPTION_RSP, OPTION_NO_RSP,
+     0, -1, -1, -1,
     -1 },
 };
 
@@ -3267,6 +3276,14 @@ mips_parse_argument_token (char *s, char float_format)
 	      s = expr_end;
 	      token.u.index = element.X_add_number;
 	      mips_add_token (&token, OT_INTEGER_INDEX);
+
+	      /* Check for Nintendo 64 RSP vector index suffix */
+	      if (*s == 'h' || *s == 'q')
+		{
+		  token.u.ch = *s;
+		  mips_add_token (&token, OT_CHAR);
+		  ++s;
+		}
 	    }
 	  SKIP_SPACE_TABS (s);
 	  if (*s != ']')
@@ -4684,6 +4701,15 @@ operand_reg_mask (const struct mips_cl_insn *insn,
       if (!(type_mask & (1 << OP_REG_GP)))
 	return 0;
       return 1 << insn_extract_operand (insn, operand);
+
+    case OP_RSP_VECEL:
+      if (!(type_mask & (1 << OP_REG_VEC)))
+	return 0;
+      uval = insn_extract_operand (insn, operand);
+      return 1 << (uval & 31);
+
+    case OP_RSP_VECEL_LS:
+      abort ();
     }
   abort ();
 }
@@ -5900,6 +5926,113 @@ match_mdmx_imm_reg_operand (struct mips_arg_info *arg,
   return TRUE;
 }
 
+/* OP_RSP_VECEL matcher.  */
+static bfd_boolean
+match_rsp_vecel_operand (struct mips_arg_info *arg,
+			    const struct mips_operand *operand)
+{
+  unsigned int regno, uval, el, elmax, elor;
+
+  uval = 0;
+  el = 0;
+  elmax = 0;
+  elor = 0;
+
+  /* Next token must be OT_REG with vector register. */
+  if (arg->token->type != OT_REG)
+    return FALSE;
+
+  if (!match_regno (arg, OP_REG_VEC, arg->token->u.regno, &regno))
+    return FALSE;
+  uval |= regno;
+  ++arg->token;
+
+  /* Next token may be OT_INTEGER_INDEX (and may 'q' or 'h'), or totally not. */
+  if (arg->token->type == OT_INTEGER_INDEX)
+    {
+      /* Can't check EL in valid range here, because max value is differ when the 'q' or 'h' suffix is specified. */
+      /* So only save el here. */
+      el = arg->token->u.index;
+      elmax = 7;
+      elor = 0x8;
+      ++arg->token;
+
+      /* Next token may be OT_CHAR with 'q' or 'h', or other token (must be ignored and left untouched). */
+      if (arg->token->type == OT_CHAR)
+	{
+	  switch (arg->token->u.ch)
+	    {
+	    case 'q':
+	      elmax = 1;
+	      elor = 0x2;
+	      ++arg->token;
+	      break;
+	    case 'h':
+	      elmax = 3;
+	      elor = 0x4;
+	      ++arg->token;
+	      break;
+	    case ',':
+	      /* ignore */
+	      break;
+	    default:
+	      as_warn (_("extra character '%c' at end of element selector"), arg->token->u.ch);
+	      break;
+	    }
+	}
+    }
+
+  /* Next possible tokens are OT_CHAR ',' or OT_END. If not comes next, warn. */
+  if (!(
+      (arg->token->type == OT_CHAR && arg->token->u.ch == ',')
+      || (arg->token->type == OT_END)
+      ))
+    {
+      as_warn (_("unknown token %d (see assembler source for symbol OT_*) at end of element selector"), arg->token->type);
+    }
+
+  if (el > elmax)
+    {
+      set_insn_error (arg->argnum, _("invalid element selector"));
+      return FALSE;
+    }
+
+  uval |= (el | elor) << 5;
+
+  insn_insert_operand (arg->insn, operand, uval);
+  return TRUE;
+}
+
+/* OP_RSP_VECEL_LS matcher.  */
+static bfd_boolean
+match_rsp_vecel_ls_operand (struct mips_arg_info *arg,
+			    const struct mips_operand *operand)
+{
+  unsigned int uval;
+
+  /* Next token must be OT_INTEGER_INDEX. */
+  if (arg->token->type != OT_INTEGER_INDEX)
+    return FALSE;
+
+  uval = arg->token->u.index;
+  ++arg->token;
+
+  if (uval > 15)
+    {
+      match_out_of_range (arg);
+      return FALSE;
+    }
+
+  /* Foolproof: user may specify OT_CHAR 'q' or OT_CHAR 'h' that can't be specified here. If specified, warn. */
+  if (arg->token->type == OT_CHAR && (arg->token->u.ch == 'q' || arg->token->u.ch == 'h'))
+    {
+      as_warn (_("vector element specifier 'q' or h' cannot be specified here."));
+    }
+
+  insn_insert_operand (arg->insn, operand, uval);
+  return TRUE;
+}
+
 /* OP_IMM_INDEX matcher.  */
 
 static bfd_boolean
@@ -6278,6 +6411,12 @@ match_operand (struct mips_arg_info *arg,
 
     case OP_NON_ZERO_REG:
       return match_non_zero_reg_operand (arg, operand);
+
+    case OP_RSP_VECEL:
+      return match_rsp_vecel_operand (arg, operand);
+
+    case OP_RSP_VECEL_LS:
+      return match_rsp_vecel_ls_operand (arg, operand);
     }
   abort ();
 }
@@ -10843,7 +10982,11 @@ macro (struct mips_cl_insn *ip, char *str)
 	load_register (tempreg, &offset_expr, HAVE_64BIT_ADDRESSES);
       else if (mips_pic == NO_PIC)
 	{
-	  /* If this is a reference to a GP relative symbol, we want
+	  /* If Nintendo 64 RSP ASE is enabled, only BFD_RELOC_LO16 is sufficient
+	     because there are only 4KB memory space. So, we want
+	       addiu	$tempreg,$zero,<sym>	(BFD_RELOC_LO16)
+
+	     If this is a reference to a GP relative symbol, we want
 	       addiu	$tempreg,$gp,<sym>	(BFD_RELOC_GPREL16)
 	     Otherwise we want
 	       lui	$tempreg,<sym>		(BFD_RELOC_HI16_S)
@@ -10870,7 +11013,12 @@ macro (struct mips_cl_insn *ip, char *str)
 
 	     For GP relative symbols in 64bit address space we can use
 	     the same sequence as in 32bit address space.  */
-	  if (HAVE_64BIT_SYMBOLS)
+	  if (mips_opts.ase & ASE_RSP)
+	    {
+	      macro_build (&offset_expr, ADDRESS_ADDI_INSN, "t,r,j",
+			   tempreg, ZERO, BFD_RELOC_LO16);
+	    }
+	  else if (HAVE_64BIT_SYMBOLS)
 	    {
 	      if ((valueT) offset_expr.X_add_number <= MAX_GPREL_OFFSET
 		  && !nopic_need_relax (offset_expr.X_add_symbol, 1))
@@ -12259,7 +12407,14 @@ macro (struct mips_cl_insn *ip, char *str)
 	      break;
 	    }
 
-	  if (breg == 0)
+	  if (breg == 0 && mips_opts.ase & ASE_RSP)
+	    {
+	      /* If base reg is $zero and ASE_RSP is enabled,
+	         place LO16 ld/st only because memory space is 4KB. */
+	      macro_build (&offset_expr, s, fmt, op[0],
+			   BFD_RELOC_LO16, op[2]/*=ZERO*/);
+	    }
+	  else if (breg == 0)
 	    {
 	      if ((valueT) offset_expr.X_add_number <= MAX_GPREL_OFFSET
 		  && !nopic_need_relax (offset_expr.X_add_symbol, 1))
@@ -19873,6 +20028,9 @@ static const struct mips_cpu_info mips_cpu_info_table[] =
   { "i6400",	      0, ASE_MSA,		ISA_MIPS64R6, CPU_MIPS64R6},
   { "p6600",	      0, ASE_VIRT | ASE_MSA,	ISA_MIPS64R6, CPU_MIPS64R6},
 
+  /* Nintendo 64 RSP */
+  { "rsp",	      0, ASE_RSP,		ISA_MIPS1,    CPU_R3000 },
+
   /* End marker */
   { NULL, 0, 0, 0, 0 }
 };
@@ -20116,6 +20274,9 @@ MIPS options:\n\
   fprintf (stream, _("\
 -mxpa			generate eXtended Physical Address (XPA) instructions\n\
 -mno-xpa		do not generate eXtended Physical Address (XPA) instructions\n"));
+  fprintf (stream, _("\
+-mrsp			generate Nintendo 64 RSP instructions\n\
+-mno-rsp		do not generate Nintendo 64 RSP instructions\n"));
   fprintf (stream, _("\
 -mvirt			generate Virtualization instructions\n\
 -mno-virt		do not generate Virtualization instructions\n"));
