@@ -580,6 +580,7 @@ static int mips_32bitmode = 0;
    || mips_opts.arch == CPU_R3900                     \
    || mips_opts.arch == CPU_R5900                     \
    || mips_opts.micromips                             \
+   || (mips_opts.ase & ASE_RSP)                       \
    )
 
 /* Whether the processor uses hardware interlocks to avoid delays
@@ -597,6 +598,7 @@ static int mips_32bitmode = 0;
     && mips_opts.isa != ISA_MIPS3)                    \
    || mips_opts.arch == CPU_R4300                     \
    || mips_opts.micromips                             \
+   || (mips_opts.ase & ASE_RSP)                       \
    )
 
 /* Whether the processor uses hardware interlocks to protect reads
