@@ -610,6 +610,7 @@ static int mips_32bitmode = 0;
 #define cop_mem_interlocks                            \
   (mips_opts.isa != ISA_MIPS1                         \
    || mips_opts.micromips                             \
+   || (mips_opts.ase & ASE_RSP)                       \
    )
 
 /* Is this a mfhi or mflo instruction?  */
